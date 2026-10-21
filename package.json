@@ -1,0 +1,34 @@
+{
+  "name": "docket-reader",
+  "version": "0.1.0",
+  "description": "An AI worker that reads public comments on a proposed federal rule, groups form letters, extracts arguments with verified quotes, and drafts a cited summary memo for human review.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "workspaces": ["web"],
+  "scripts": {
+    "db:init": "bun src/cli.ts db:init",
+    "fetch": "bun src/cli.ts fetch",
+    "group": "bun src/cli.ts group",
+    "extract": "bun src/cli.ts extract",
+    "merge": "bun src/cli.ts merge",
+    "memo": "bun src/cli.ts memo",
+    "stats": "bun src/cli.ts stats",
+    "eval:sample": "bun eval/sample.ts",
+    "eval": "bun eval/run.ts",
+    "api": "bun --watch src/server.ts",
+    "web": "bun --cwd web run dev",
+    "build": "bun --cwd web run build",
+    "start": "bun src/server.ts",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit -p . && bun --cwd web run typecheck"
+  },
+  "dependencies": {
+    "@elysiajs/static": "^1.4.10",
+    "elysia": "^1.4.30"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "typescript": "^5.9.3"
+  }
+}

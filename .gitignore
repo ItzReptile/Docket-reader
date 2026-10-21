@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+
+# Downloaded comment data and anything derived from it contains commenters'
+# names and words. It stays on your machine; the repo ships the fetch script.
+data/
+eval/to-label/
+eval/runs/
+memos/
+*.log
+.DS_Store
