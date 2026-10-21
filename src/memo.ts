@@ -12,6 +12,7 @@ import { argumentQuotes, attachmentOnly, listArguments, summary } from "./querie
 const link = (id: string) => `[${id}](https://www.regulations.gov/comment/${id})`;
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "0%");
 const fmt = (n: number) => n.toLocaleString("en-US");
+const count = (n: number, word: string) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
 
 export interface MemoCheck {
   citedIds: number;
@@ -82,7 +83,7 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
       .filter((k) => a[k] > 0)
       .map((k) => `${k} ${fmt(a[k])}`)
       .join(" · ");
-    out.push(`Raised by **${fmt(a.commenters)} commenters** (${fmt(a.unique_comments)} distinct comments). Their overall position: ${positions}.`);
+    out.push(`Raised by **${count(a.commenters, "commenter")}** (${count(a.unique_comments, "distinct comment")}). Their overall position: ${positions}.`);
     out.push("");
 
     const seen = new Set<string>();
@@ -102,7 +103,7 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
     out.push(`Cited comments: ${shown}${ids.length > 8 ? `, and ${ids.length - 8} more (Appendix A)` : ""}.`);
     out.push("");
     appendixA.push(
-      `**${i + 1}. ${a.label}**: ` +
+      `**${i + 1}. ${a.label}**  \n` +
         quotes
           .filter((q: any, j: number, arr: any[]) => arr.findIndex((x) => x.comment_id === q.comment_id) === j)
           .map((q: any) => (q.group_size > 1 ? `${q.comment_id} (+${q.group_size - 1} copies)` : q.comment_id))
