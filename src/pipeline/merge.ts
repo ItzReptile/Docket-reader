@@ -45,7 +45,7 @@ export async function mergeArguments(
   opts: { model?: string; threshold?: number; force?: boolean } = {},
 ) {
   const model = opts.model ?? config.llmModel;
-  const threshold = opts.threshold ?? 0.86;
+  const threshold = opts.threshold ?? 0.88;
 
   const [reviewed] = await sql`
     select count(*)::int as n from arguments
