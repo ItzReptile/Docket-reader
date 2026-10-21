@@ -6,6 +6,7 @@ describe("cleanArgument", () => {
   test("strips 'the commenter argues that' boilerplate", () => {
     expect(cleanArgument("The commenter argues that kits often lack epinephrine.")).toBe("Kits often lack epinephrine.");
     expect(cleanArgument("Commenter believes the rule is too weak")).toBe("The rule is too weak");
+    expect(cleanArgument("The commenter fears that a lack of epinephrine could be fatal.")).toBe("A lack of epinephrine could be fatal.");
     expect(cleanArgument("Airlines should carry epinephrine")).toBe("Airlines should carry epinephrine");
   });
 });

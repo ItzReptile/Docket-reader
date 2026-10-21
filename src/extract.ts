@@ -219,7 +219,7 @@ export async function extractComment(
 export function cleanArgument(text: string): string {
   const s = text
     .trim()
-    .replace(/^(the |this |one )?(commenter|commentor|comment|writer|author|submitter)s? (strongly )?(argues|believes|states|says|claims|thinks|feels|notes|suggests|asserts|contends|expresses|urges|requests|asks|points out|emphasizes|highlights|is concerned)( that)?[:,]?\s+/i, "");
+    .replace(/^(the |this |one )?(commenter|commentor|comment|writer|author|submitter)s? (strongly )?(argues|believes|states|says|claims|thinks|feels|fears|worries|warns|notes|suggests|asserts|contends|expresses|urges|requests|asks|wants|recommends|proposes|insists|maintains|stresses|points out|emphasizes|highlights|is concerned|is worried)( that)?[:,]?\s+/i, "");
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
