@@ -14,6 +14,7 @@
     "merge": "bun src/cli.ts merge",
     "memo": "bun src/cli.ts memo",
     "stats": "bun src/cli.ts stats",
+    "pipeline": "bun src/cli.ts pipeline",
     "eval:sample": "bun eval/sample.ts",
     "eval": "bun eval/run.ts",
     "api": "bun --watch src/server.ts",

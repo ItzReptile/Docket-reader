@@ -5,6 +5,7 @@
 //   bun run merge   FAA-2026-9178-0001 [--threshold 0.86] [--force]
 //   bun run memo    FAA-2026-9178-0001 [--include-pending] [--out memos/memo.md]
 //   bun run stats   FAA-2026-9178-0001
+//   bun run pipeline FAA-2026-9178-0001   (fetch, group, extract, merge in one go)
 
 import { parseArgs } from "node:util";
 import { mkdir } from "node:fs/promises";
@@ -72,11 +73,21 @@ try {
       if (check.unknownIds.length || check.quotesFailed.length) process.exitCode = 1;
       break;
     }
+    case "pipeline": {
+      const id = needDocument();
+      await initSchema();
+      await fetchComments(id, { limit });
+      await groupComments(id);
+      await extractAll(id, { model });
+      await mergeArguments(id, { model });
+      console.log(`done. Review it with "bun run api" + "bun run web", or "bun run build && bun start".`);
+      break;
+    }
     case "stats":
       console.log(JSON.stringify(await summary(needDocument(), model), null, 2));
       break;
     default:
-      console.log("commands: db:init, fetch, group, extract, merge, memo, stats");
+      console.log("commands: db:init, fetch, group, extract, merge, memo, stats, pipeline");
       process.exitCode = 1;
   }
 } finally {
