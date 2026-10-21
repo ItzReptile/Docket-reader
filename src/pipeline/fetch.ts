@@ -39,21 +39,39 @@ async function get(path: string, params: Record<string, string | number> = {}): 
   }
 }
 
+// HTML entities that show up in typed comments (curly quotes from word
+// processors, dashes, accents). Unknown ones are left as they are.
+const ENTITIES: Record<string, string> = {
+  amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " ",
+  rsquo: "’", lsquo: "‘", sbquo: "‚", rdquo: "”", ldquo: "“", bdquo: "„",
+  mdash: "—", ndash: "–", hellip: "…", bull: "•", middot: "·", prime: "′",
+  laquo: "«", raquo: "»", copy: "©", reg: "®", trade: "™", deg: "°",
+  plusmn: "±", times: "×", divide: "÷", frac12: "½", frac14: "¼", frac34: "¾",
+  sect: "§", para: "¶", cent: "¢", pound: "£", euro: "€", yen: "¥",
+  ensp: " ", emsp: " ", thinsp: " ", shy: "", zwj: "", zwnj: "",
+  aacute: "á", eacute: "é", iacute: "í", oacute: "ó", uacute: "ú", ntilde: "ñ", ccedil: "ç",
+  agrave: "à", egrave: "è", auml: "ä", ouml: "ö", uuml: "ü", Aacute: "Á", Eacute: "É", Ntilde: "Ñ",
+};
+
+export function decodeEntities(text: string): string {
+  // One pass, so "&amp;lt;" correctly becomes "&lt;" and not "<".
+  return text.replace(/&(#\d+|#x[0-9a-f]+|[a-z][a-z0-9]*);/gi, (whole, name: string) => {
+    if (name[0] === "#") {
+      const code = name[1] === "x" || name[1] === "X" ? parseInt(name.slice(2), 16) : Number(name.slice(1));
+      return Number.isFinite(code) && code > 0 && code <= 0x10ffff ? String.fromCodePoint(code) : whole;
+    }
+    return ENTITIES[name] ?? whole;
+  });
+}
+
 /** Comment text comes back as light HTML. Turn it into plain text. */
 export function htmlToText(html: string): string {
-  return html
+  const text = html
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(p|div|li|h\d)>/gi, "\n\n")
     .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ")
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
-    .replace(/&amp;/g, "&")
+    .replace(/<[^>]+>/g, "");
+  return decodeEntities(text)
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
