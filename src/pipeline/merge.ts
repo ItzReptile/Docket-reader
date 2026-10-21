@@ -12,6 +12,7 @@
 import { sql } from "../db.ts";
 import { config } from "../config.ts";
 import { embedder } from "../llm/index.ts";
+import { cleanArgument } from "../extract.ts";
 import { cosine, toPg, type Vector } from "../vectors.ts";
 
 type ClaimRow = { id: number; comment_id: string; argument: string; embedding: Vector | null; size: number };
@@ -20,6 +21,14 @@ export async function embedClaims(documentId: string, model: string) {
   const missing: { id: number; argument: string }[] = await sql`
     select cl.id, cl.argument from claims cl join comments c using (comment_id)
     where c.document_id = ${documentId} and cl.model = ${model} and cl.quote_ok and cl.embedding is null`;
+  // Arguments extracted before a cleanArgument() improvement get the same cleanup.
+  for (const c of missing) {
+    const cleaned = cleanArgument(c.argument);
+    if (cleaned !== c.argument) {
+      c.argument = cleaned;
+      await sql`update claims set argument = ${cleaned} where id = ${c.id}`;
+    }
+  }
   const emb = embedder();
   for (let i = 0; i < missing.length; i += 64) {
     const batch = missing.slice(i, i + 64);
