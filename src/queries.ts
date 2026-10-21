@@ -1,7 +1,7 @@
 // Read/write queries shared by the review API and the memo.
 
 import { sql } from "./db.ts";
-import { cosine, mean } from "./vectors.ts";
+import { cosine, mean, toPg } from "./vectors.ts";
 
 export async function listDocuments() {
   return sql`
@@ -143,7 +143,7 @@ export async function mergeInto(targetId: number, sourceIds: number[]) {
     const vectors = await tx`select embedding from claims where argument_id = ${targetId} and embedding is not null`;
     if (vectors.length) {
       const centre = mean(vectors.map((r: { embedding: number[] }) => r.embedding));
-      await tx`update arguments set centroid = ${centre}, updated_at = now() where id = ${targetId}`;
+      await tx`update arguments set centroid = ${toPg(centre)}, updated_at = now() where id = ${targetId}`;
     }
   });
 }

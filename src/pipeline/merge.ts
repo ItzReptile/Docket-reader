@@ -12,9 +12,9 @@
 import { sql } from "../db.ts";
 import { config } from "../config.ts";
 import { embedder } from "../llm/index.ts";
-import { cosine } from "../vectors.ts";
+import { cosine, toPg, type Vector } from "../vectors.ts";
 
-type ClaimRow = { id: number; argument: string; embedding: number[] | null; size: number };
+type ClaimRow = { id: number; argument: string; embedding: Vector | null; size: number };
 
 export async function embedClaims(documentId: string, model: string) {
   const missing: { id: number; argument: string }[] = await sql`
@@ -25,7 +25,7 @@ export async function embedClaims(documentId: string, model: string) {
     const batch = missing.slice(i, i + 64);
     const vectors = await emb.embed(batch.map((c) => c.argument));
     for (let j = 0; j < batch.length; j++) {
-      await sql`update claims set embedding = ${vectors[j]!} where id = ${batch[j]!.id}`;
+      await sql`update claims set embedding = ${toPg(vectors[j]!)} where id = ${batch[j]!.id}`;
     }
   }
   if (missing.length) console.log(`embedded ${missing.length} arguments with ${config.embedModel}`);
@@ -36,7 +36,7 @@ export async function mergeArguments(
   opts: { model?: string; threshold?: number; force?: boolean } = {},
 ) {
   const model = opts.model ?? config.llmModel;
-  const threshold = opts.threshold ?? 0.8;
+  const threshold = opts.threshold ?? 0.86;
 
   const [reviewed] = await sql`
     select count(*)::int as n from arguments
@@ -54,7 +54,7 @@ export async function mergeArguments(
     where c.document_id = ${documentId} and cl.model = ${model} and cl.quote_ok
     order by g.size desc, cl.id`;
 
-  const clusters: { members: ClaimRow[]; centre: number[] }[] = [];
+  const clusters: { members: ClaimRow[]; centre: Vector }[] = [];
   for (const claim of claims) {
     const v = claim.embedding!;
     let best = -1;
@@ -73,7 +73,7 @@ export async function mergeArguments(
       const cl = clusters[best]!;
       cl.members.push(claim);
       const n = cl.members.length;
-      cl.centre = cl.centre.map((x, i) => x + (v[i]! - x) / n);
+      cl.centre = Array.from(cl.centre, (x, i) => x + (v[i]! - x) / n);
     }
   }
 
@@ -87,7 +87,7 @@ export async function mergeArguments(
       const label = cl.members.reduce((a, b) => (cosine(a.embedding!, cl.centre) >= cosine(b.embedding!, cl.centre) ? a : b)).argument;
       const [row] = await tx`
         insert into arguments (document_id, model, label, centroid)
-        values (${documentId}, ${model}, ${label}, ${cl.centre})
+        values (${documentId}, ${model}, ${label}, ${toPg(cl.centre)})
         returning id`;
       await tx`update claims set argument_id = ${row.id} where id in ${tx(cl.members.map((m) => m.id))}`;
     }

@@ -2,7 +2,7 @@
 //   bun run fetch   FAA-2026-9178-0001 [--limit 20]
 //   bun run group   FAA-2026-9178-0001 [--threshold 0.5]
 //   bun run extract FAA-2026-9178-0001 [--model qwen3.5:4b] [--limit 20]
-//   bun run merge   FAA-2026-9178-0001 [--threshold 0.8] [--force]
+//   bun run merge   FAA-2026-9178-0001 [--threshold 0.86] [--force]
 //   bun run memo    FAA-2026-9178-0001 [--include-pending] [--out memos/memo.md]
 //   bun run stats   FAA-2026-9178-0001
 
