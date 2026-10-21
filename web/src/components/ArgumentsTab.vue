@@ -1,8 +1,21 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { Check, GitMerge, Pencil, Quote as QuoteIcon, Search, Undo2, Users, X } from "@lucide/vue";
-import { api, count, fmt, type Argument, type Quote, type Similar, type Status } from "@/api";
+import { toast } from "vue-sonner";
+import { Check, GitMerge, Lightbulb, Pencil, Quote as QuoteIcon, Search, Undo2, Users, X } from "@lucide/vue";
+import {
+  api,
+  count,
+  fmt,
+  stanceSummary,
+  STANCE_TEXT_COLOR,
+  type Argument,
+  type Quote,
+  type Similar,
+  type Status,
+} from "@/api";
 import { openComment, refresh, ui } from "@/store";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -15,8 +28,22 @@ import { Textarea } from "@/components/ui/textarea";
 import StanceBar from "./StanceBar.vue";
 
 const args = ref<Argument[]>([]);
-const filter = ref<Status | "all">("all");
+const filter = computed({ get: () => ui.argumentFilter, set: (v) => (ui.argumentFilter = v) });
+const sortBy = ref<"commenters" | "distinct">("commenters");
 const search = ref("");
+
+// A short how-to that stays dismissed once closed (per browser).
+const GUIDE_KEY = "docket-reader:hide-review-guide";
+const showGuide = ref(true);
+try {
+  showGuide.value = localStorage.getItem(GUIDE_KEY) !== "1";
+} catch {}
+function hideGuide() {
+  showGuide.value = false;
+  try {
+    localStorage.setItem(GUIDE_KEY, "1");
+  } catch {}
+}
 const selectedId = ref<number | null>(null);
 const checked = ref<Set<number>>(new Set());
 const quotes = ref<Quote[]>([]);
@@ -37,15 +64,33 @@ const counts = computed(() => ({
   approved: args.value.filter((a) => a.status === "approved").length,
   rejected: args.value.filter((a) => a.status === "rejected").length,
 }));
-const visible = computed(() =>
-  args.value.filter(
+const visible = computed(() => {
+  const list = args.value.filter(
     (a) =>
       (filter.value === "all" || a.status === filter.value) &&
       (!search.value || a.label.toLowerCase().includes(search.value.toLowerCase())),
-  ),
-);
+  );
+  return sortBy.value === "distinct" ? [...list].sort((a, b) => b.unique_comments - a.unique_comments || b.commenters - a.commenters) : list;
+});
 const selected = computed(() => args.value.find((a) => a.id === selectedId.value) ?? null);
 const rank = (a: Argument) => args.value.indexOf(a) + 1;
+const maxCommenters = computed(() => Math.max(1, ...args.value.map((a) => a.commenters)));
+
+// Coming from the Overview: select the argument it pointed at.
+watch(
+  () => [ui.focusArgumentId, args.value.length],
+  () => {
+    if (ui.focusArgumentId != null && args.value.some((a) => a.id === ui.focusArgumentId)) {
+      selectedId.value = ui.focusArgumentId;
+      ui.focusArgumentId = null;
+    }
+  },
+  { immediate: true },
+);
+// Coming from "Review the next argument": start at the top of the filtered list.
+watch(filter, () => {
+  if (selected.value && !visible.value.includes(selected.value)) selectedId.value = visible.value[0]?.id ?? null;
+});
 
 watch(selectedId, async (id) => {
   editing.value = false;
@@ -57,10 +102,23 @@ watch(selectedId, async (id) => {
 });
 
 async function setStatus(status: Status) {
-  if (!selected.value) return;
-  await api.updateArgument(selected.value.id, { status });
-  selected.value.status = status;
+  const a = selected.value;
+  if (!a) return;
+  const before = visible.value.indexOf(a);
+  await api.updateArgument(a.id, { status });
+  a.status = status;
   refresh();
+  if (status === "pending") {
+    toast(`Moved #${rank(a)} back to pending`);
+    return;
+  }
+  toast.success(`${status === "approved" ? "Approved" : "Rejected"} #${rank(a)}`, {
+    action: { label: "Undo", onClick: () => api.updateArgument(a.id, { status: "pending" }).then(() => ((a.status = "pending"), refresh())) },
+  });
+  // Move on to the next argument so a reviewer can keep going.
+  const list = visible.value;
+  const next = list.includes(a) ? list[before + 1] : list[before];
+  if (next) selectedId.value = next.id;
 }
 
 function startEdit() {
@@ -74,12 +132,15 @@ async function saveLabel() {
   await api.updateArgument(selected.value.id, { label: draft.value.trim() });
   selected.value.label = draft.value.trim();
   editing.value = false;
+  toast.success("Wording saved");
 }
 
 async function mergeIntoSelected(sourceIds: number[]) {
   if (!selected.value || sourceIds.length === 0) return;
   const id = selected.value.id;
+  const target = rank(selected.value);
   await api.merge(id, sourceIds);
+  toast.success(`Merged ${count(sourceIds.filter((s) => s !== id).length, "argument")} into #${target}`);
   checked.value = new Set();
   await load();
   selectedId.value = null;
@@ -126,10 +187,31 @@ const statusClass: Record<Status, string> = {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        <div class="relative">
-          <Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input v-model="search" placeholder="Search arguments" class="pl-8" />
+        <div class="flex gap-2">
+          <div class="relative flex-1">
+            <Search class="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input v-model="search" placeholder="Search arguments" class="pl-8" />
+          </div>
+          <Select v-model="sortBy">
+            <SelectTrigger class="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="commenters">Most people</SelectItem>
+              <SelectItem value="distinct">Most distinct comments</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+        <Alert v-if="showGuide" class="relative pr-9">
+          <Lightbulb />
+          <AlertTitle>How to review</AlertTitle>
+          <AlertDescription class="text-xs leading-relaxed">
+            For each argument, read a few of its quotes. <b>Approve</b> it if commenters really make that point and the wording is fair,
+            <b>edit</b> the wording if not, <b>reject</b> noise, and <b>merge</b> arguments that say the same thing. Only approved
+            arguments go into the memo.
+          </AlertDescription>
+          <button class="absolute top-2.5 right-2.5 text-muted-foreground hover:text-foreground" aria-label="Hide" @click="hideGuide">
+            <X class="size-4" />
+          </button>
+        </Alert>
         <div v-if="checked.size" class="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-sm">
           <span>{{ checked.size }} checked</span>
           <Button size="sm" class="ml-auto" :disabled="!selected || checked.has(selected.id)" @click="mergeIntoSelected([...checked])">
@@ -157,12 +239,17 @@ const statusClass: Record<Status, string> = {
             <span class="w-5 shrink-0 text-right text-sm text-muted-foreground tabular-nums">{{ rank(a) }}</span>
             <div class="min-w-0 flex-1 space-y-2">
               <p class="line-clamp-2 text-sm leading-snug">{{ a.label }}</p>
-              <div class="flex items-center gap-3 text-xs text-muted-foreground">
-                <span class="inline-flex items-center gap-1 font-medium text-foreground">
-                  <Users class="size-3.5" /> {{ fmt(a.commenters) }}
+              <div class="flex items-center gap-2">
+                <div class="h-1 flex-1 overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full bg-primary/60" :style="{ width: (100 * a.commenters) / maxCommenters + '%' }" />
+                </div>
+                <span class="inline-flex w-14 shrink-0 items-center justify-end gap-1 text-xs font-medium tabular-nums">
+                  <Users class="size-3.5 text-muted-foreground" /> {{ fmt(a.commenters) }}
                 </span>
+              </div>
+              <div class="flex items-center gap-3 text-xs text-muted-foreground">
+                <span :class="stanceSummary(a).stance ? STANCE_TEXT_COLOR[stanceSummary(a).stance!] : ''">{{ stanceSummary(a).text }}</span>
                 <span>{{ count(a.unique_comments, "distinct comment") }}</span>
-                <StanceBar class="w-16" v-bind="a" />
                 <Badge v-if="a.status !== 'pending'" variant="outline" :class="statusClass[a.status]" class="ml-auto capitalize">
                   {{ a.status }}
                 </Badge>
