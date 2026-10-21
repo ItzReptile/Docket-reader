@@ -94,8 +94,8 @@ For the comment you are given, return JSON with:
   oppose = wants it withdrawn, or rejects its main approach.
   mixed = supports some parts and objects to others, or supports it only with significant changes.
   unclear = the position can't be told, or the comment is off topic.
-- arguments: each distinct reason, request or concern the commenter gives. Usually 1 to 4. Use an empty list if the comment gives no reasons.
-  - argument: the point itself as one short sentence in your own words, phrased so it would read the same for any commenter making the same point, e.g. "The compliance deadline is too short for small businesses". State the claim directly: never start with "The commenter", and never name anyone.
+- arguments: each distinct point the commenter makes. A point is either a request (what they want the agency to do) or a reason, concern or piece of evidence. List a request and each reason behind it as separate points. Usually 1 to 5. Use an empty list if the comment makes no point.
+  - argument: one point in at most 15 words, in your own words, phrased so it would read the same for any commenter making it. Good: "Extend the compliance deadline for small businesses". Good: "Small businesses cannot afford the new reporting software". Bad: "The rule fails to extend the deadline, which hurts small businesses because software is expensive" (that is two points). State it directly: never start with "The commenter", and never name anyone.
   - quote: the sentence (or two adjacent sentences) from the comment that makes this point, copied exactly, character for character. Do not fix spelling or grammar, do not shorten it with "...", and do not paraphrase.`;
 }
 
