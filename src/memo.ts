@@ -48,6 +48,36 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
   );
   out.push("");
 
+  // Key findings: a few sentences filled in from the numbers, for a reader who
+  // stops here. Still no model-written text: labels are reviewer-approved.
+  const people = s.stances.reduce((n: number, r: any) => n + r.commenters, 0);
+  const share = (stance: string) => s.stances.find((r: any) => r.stance === stance)?.commenters ?? 0;
+  const largest = (
+    await sql`select size, representative_id from comment_groups where document_id = ${documentId} order by size desc limit 1`
+  )[0];
+  out.push(`## Key findings`);
+  out.push("");
+  if (people) {
+    out.push(
+      `- Of ${count(people, "commenter")} whose comments were read, ${pct(share("oppose"), people)} oppose the rule as proposed, ` +
+        `${pct(share("support"), people)} support it, ${pct(share("mixed"), people)} are mixed and ${pct(share("unclear"), people)} are unclear.`,
+    );
+  }
+  if (chosen.length) {
+    const top = chosen.slice(0, 3).map((a: any, i: number) => `"${a.label.replace(/\.$/, "")}" (${count(a.commenters, "commenter")}, §${i + 1})`);
+    out.push(`- The most common ${chosen.length === 1 ? "argument is" : "arguments are"} ${top.join("; ")}.`);
+  }
+  if (s.duplicate_groups) {
+    out.push(
+      `- ${count(s.in_duplicate_groups, "comment")} (${pct(s.in_duplicate_groups, s.listed)}) came from ${count(s.duplicate_groups, "form-letter campaign")}` +
+        (largest && largest.size > 1 ? `; the largest was sent ${fmt(largest.size)} times (e.g. ${link(largest.representative_id)}).` : "."),
+    );
+  }
+  if (s.attachment_only) {
+    out.push(`- ${count(s.attachment_only, "comment")} put their content in an attachment this tool does not read; a person should read them (Appendix B).`);
+  }
+  out.push("");
+
   out.push(`## At a glance`);
   out.push("");
   out.push(`| | |`);
