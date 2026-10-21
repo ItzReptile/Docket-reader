@@ -1,5 +1,4 @@
 
-@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap');
 
 @import "@fontsource-variable/geist";
 
@@ -136,4 +135,10 @@
   mark.focus {
     @apply bg-amber-300 ring-2 ring-amber-500/60;
   }
+}
+
+/* Memo quotes already carry their own quotation marks. */
+.prose :where(blockquote p)::before,
+.prose :where(blockquote p)::after {
+  content: none;
 }

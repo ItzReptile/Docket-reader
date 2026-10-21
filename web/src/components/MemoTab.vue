@@ -1,12 +1,18 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import { marked } from "marked";
-import { api, type Memo } from "../api";
-import { ui } from "../store";
+import { Download, ShieldAlert, ShieldCheck } from "@lucide/vue";
+import { api, type Memo } from "@/api";
+import { ui } from "@/store";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const memo = ref<Memo | null>(null);
 const includePending = ref(false);
-const raw = ref(false);
+const view = ref("rendered");
 
 watch(
   () => [ui.doc, ui.model, ui.version, includePending.value],
@@ -27,59 +33,35 @@ function download() {
 </script>
 
 <template>
-  <div v-if="memo" class="memo">
-    <div class="bar panel">
-      <span :class="passed ? 'ok' : 'bad'">
-        {{ passed ? "✓" : "✗" }} {{ memo.check.citedIds }} comment IDs cited, {{ memo.check.unknownIds.length }} unknown ·
-        {{ memo.check.quotesChecked }} quotes re-checked, {{ memo.check.quotesFailed.length }} failed
-      </span>
-      <span class="spacer" />
-      <label><input type="checkbox" v-model="includePending" /> include unreviewed arguments</label>
-      <button @click="raw = !raw">{{ raw ? "Rendered" : "Markdown" }}</button>
-      <button class="primary" @click="download">Download .md</button>
-    </div>
-    <pre v-if="raw" class="panel doc">{{ memo.markdown }}</pre>
-    <article v-else class="panel doc" v-html="html" />
+  <div v-if="memo" class="space-y-4">
+    <Card size="sm">
+      <CardContent class="flex flex-wrap items-center gap-4">
+        <div class="flex items-center gap-2 text-sm" :class="passed ? 'text-emerald-700' : 'text-rose-700'">
+          <ShieldCheck v-if="passed" class="size-4" />
+          <ShieldAlert v-else class="size-4" />
+          <span>
+            {{ memo.check.citedIds }} comment IDs cited, {{ memo.check.unknownIds.length }} unknown ·
+            {{ memo.check.quotesChecked }} quotes re-checked, {{ memo.check.quotesFailed.length }} failed
+          </span>
+        </div>
+        <div class="ml-auto flex items-center gap-2">
+          <Checkbox id="pending" :model-value="includePending" @update:model-value="(v) => (includePending = v === true)" />
+          <Label for="pending" class="text-sm font-normal">Include unreviewed arguments</Label>
+        </div>
+        <Tabs v-model="view">
+          <TabsList>
+            <TabsTrigger value="rendered">Rendered</TabsTrigger>
+            <TabsTrigger value="markdown">Markdown</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button size="sm" @click="download"><Download /> Download .md</Button>
+      </CardContent>
+    </Card>
+    <Card>
+      <CardContent>
+        <pre v-if="view === 'markdown'" class="text-xs leading-relaxed whitespace-pre-wrap">{{ memo.markdown }}</pre>
+        <article v-else class="prose prose-sm max-w-none prose-blockquote:font-normal prose-blockquote:not-italic" v-html="html" />
+      </CardContent>
+    </Card>
   </div>
 </template>
-
-<style scoped>
-.bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-}
-.spacer {
-  flex: 1;
-}
-.ok {
-  color: var(--ok);
-}
-.bad {
-  color: var(--bad);
-}
-.doc {
-  padding: 8px 32px 24px;
-  max-width: 900px;
-  line-height: 1.55;
-}
-pre.doc {
-  white-space: pre-wrap;
-  font-size: 13px;
-  padding-top: 20px;
-}
-.doc :deep(blockquote) {
-  white-space: normal;
-  margin: 8px 0;
-}
-.doc :deep(table) {
-  border-collapse: collapse;
-}
-.doc :deep(td),
-.doc :deep(th) {
-  border: 1px solid var(--line);
-  padding: 4px 10px;
-}
-</style>
