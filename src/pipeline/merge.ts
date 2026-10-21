@@ -14,7 +14,7 @@ import { config } from "../config.ts";
 import { embedder } from "../llm/index.ts";
 import { cosine, toPg, type Vector } from "../vectors.ts";
 
-type ClaimRow = { id: number; argument: string; embedding: Vector | null; size: number };
+type ClaimRow = { id: number; comment_id: string; argument: string; embedding: Vector | null; size: number };
 
 export async function embedClaims(documentId: string, model: string) {
   const missing: { id: number; argument: string }[] = await sql`
@@ -47,19 +47,22 @@ export async function mergeArguments(
 
   await embedClaims(documentId, model);
   const claims: ClaimRow[] = await sql`
-    select cl.id, cl.argument, cl.embedding, g.size
+    select cl.id, cl.comment_id, cl.argument, cl.embedding, g.size
     from claims cl
     join comments c using (comment_id)
     join comment_groups g on g.id = c.group_id
     where c.document_id = ${documentId} and cl.model = ${model} and cl.quote_ok
     order by g.size desc, cl.id`;
 
-  const clusters: { members: ClaimRow[]; centre: Vector }[] = [];
+  const clusters: { members: ClaimRow[]; centre: Vector; comments: Set<string> }[] = [];
   for (const claim of claims) {
     const v = claim.embedding!;
     let best = -1;
     let bestSim = threshold;
     clusters.forEach((cl, i) => {
+      // The model listed a comment's arguments separately, so two arguments
+      // from the same comment are different points by definition.
+      if (cl.comments.has(claim.comment_id)) return;
       const sim = cosine(v, cl.centre);
       if (sim >= bestSim) {
         best = i;
@@ -67,11 +70,12 @@ export async function mergeArguments(
       }
     });
     if (best === -1) {
-      clusters.push({ members: [claim], centre: v });
+      clusters.push({ members: [claim], centre: v, comments: new Set([claim.comment_id]) });
     } else {
       // Running mean: the centre moves a little toward each new member.
       const cl = clusters[best]!;
       cl.members.push(claim);
+      cl.comments.add(claim.comment_id);
       const n = cl.members.length;
       cl.centre = Array.from(cl.centre, (x, i) => x + (v[i]! - x) / n);
     }
