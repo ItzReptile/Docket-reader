@@ -31,6 +31,8 @@ create table if not exists comments (
   group_id         int
 );
 create index if not exists comments_document_idx on comments (document_id);
+-- Set by the group step: true when the content is only in an attachment.
+alter table comments add column if not exists attachment_only boolean;
 
 create table if not exists comment_groups (
   id                serial primary key,

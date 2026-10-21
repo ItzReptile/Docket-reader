@@ -14,8 +14,11 @@ export async function groupComments(documentId: string, threshold = 0.5) {
     threshold,
   );
 
+  const skipped = rows.filter((r) => !readable.includes(r)).map((r) => r.comment_id);
+
   await sql.begin(async (tx) => {
-    await tx`update comments set group_id = null where document_id = ${documentId}`;
+    await tx`update comments set group_id = null, attachment_only = false where document_id = ${documentId} and detail_fetched`;
+    if (skipped.length) await tx`update comments set attachment_only = true where comment_id in ${tx(skipped)}`;
     await tx`delete from comment_groups where document_id = ${documentId}`;
     for (const g of groups) {
       const [row] = await tx`

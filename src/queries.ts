@@ -24,7 +24,7 @@ export async function summary(documentId: string, model: string) {
     select
       (select count(*)::int from comments where document_id = ${documentId}) as listed,
       (select count(*)::int from comments where document_id = ${documentId} and detail_fetched) as fetched,
-      (select count(*)::int from comments where document_id = ${documentId} and detail_fetched and group_id is null) as attachment_only,
+      (select count(*)::int from comments where document_id = ${documentId} and attachment_only) as attachment_only,
       (select count(*)::int from comment_groups where document_id = ${documentId}) as unique_texts,
       (select count(*)::int from comment_groups where document_id = ${documentId} and size > 1) as duplicate_groups,
       (select coalesce(sum(size), 0)::int from comment_groups where document_id = ${documentId} and size > 1) as in_duplicate_groups`;
@@ -133,7 +133,7 @@ export async function formLetterGroups(documentId: string, model: string, limit 
 export async function attachmentOnly(documentId: string) {
   return sql`
     select comment_id, organization, attachment_count from comments
-    where document_id = ${documentId} and detail_fetched and group_id is null
+    where document_id = ${documentId} and attachment_only
     order by comment_id`;
 }
 
