@@ -116,6 +116,20 @@ export async function flaggedClaims(documentId: string, model: string) {
     order by g.size desc, cl.comment_id`;
 }
 
+/** The biggest form-letter campaigns, with the start of their text. */
+export async function formLetterGroups(documentId: string, model: string, limit = 10) {
+  return sql`
+    select g.id, g.size, g.kind, g.representative_id, c.organization,
+           left(regexp_replace(c.body, '[[:space:]]+', ' ', 'g'), 220) as excerpt,
+           e.stance
+    from comment_groups g
+    join comments c on c.comment_id = g.representative_id
+    left join extractions e on e.comment_id = g.representative_id and e.model = ${model}
+    where g.document_id = ${documentId} and g.size > 1
+    order by g.size desc, g.id
+    limit ${limit}`;
+}
+
 export async function attachmentOnly(documentId: string) {
   return sql`
     select comment_id, organization, attachment_count from comments

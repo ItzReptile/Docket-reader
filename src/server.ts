@@ -21,6 +21,7 @@ const api = new Elysia({ prefix: "/api" })
   .get("/documents/:id/arguments", ({ params, query }) => q.listArguments(params.id, model(query.model)))
   .get("/documents/:id/flagged", ({ params, query }) => q.flaggedClaims(params.id, model(query.model)))
   .get("/documents/:id/attachment-only", ({ params }) => q.attachmentOnly(params.id))
+  .get("/documents/:id/groups", ({ params, query }) => q.formLetterGroups(params.id, model(query.model), Number(query.limit ?? 10)))
   .get("/documents/:id/memo", async ({ params, query }) =>
     buildMemo(params.id, model(query.model), { includePending: query.includePending === "true" }),
   )
