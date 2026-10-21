@@ -3,7 +3,7 @@
 
 import { sql } from "../db.ts";
 import { chatModel } from "../llm/index.ts";
-import { extractComment, type RuleInfo } from "../extract.ts";
+import { extractComment, type Extraction, type RuleInfo } from "../extract.ts";
 
 export async function ruleInfo(documentId: string): Promise<RuleInfo> {
   const [doc] = await sql`select document_id, agency_id, title, summary from documents where document_id = ${documentId}`;
@@ -31,7 +31,7 @@ export async function extractAll(documentId: string, opts: { model?: string; lim
   try {
     for (const { comment_id, body } of todo) {
       n++;
-      let result;
+      let result: Extraction;
       try {
         result = await extractComment(llm, rule, comment_id, body);
       } catch (err) {

@@ -17,11 +17,11 @@
     "eval:sample": "bun eval/sample.ts",
     "eval": "bun eval/run.ts",
     "api": "bun --watch src/server.ts",
-    "web": "bun --cwd web run dev",
-    "build": "bun --cwd web run build",
+    "web": "bun run --cwd web dev",
+    "build": "bun run --cwd web build",
     "start": "bun src/server.ts",
     "test": "bun test",
-    "typecheck": "tsc --noEmit -p . && bun --cwd web run typecheck"
+    "typecheck": "tsc --noEmit -p . && bun run --cwd web typecheck"
   },
   "dependencies": {
     "@elysiajs/static": "^1.4.10",

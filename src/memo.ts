@@ -97,7 +97,7 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
       out.push("");
       shownQuotes.push({ commentId: q.comment_id, quote: q.quote });
     }
-    const ids = [...new Set(quotes.map((q: any) => q.comment_id as string))];
+    const ids: string[] = [...new Set<string>(quotes.map((q: any) => q.comment_id))];
     const shown = ids.slice(0, 8).map(link).join(", ");
     out.push(`Cited comments: ${shown}${ids.length > 8 ? `, and ${ids.length - 8} more (Appendix A)` : ""}.`);
     out.push("");
