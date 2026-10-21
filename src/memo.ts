@@ -69,7 +69,7 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
   }
   if (s.duplicate_groups) {
     out.push(
-      `- ${count(s.in_duplicate_groups, "comment")} (${pct(s.in_duplicate_groups, s.listed)}) came from ${count(s.duplicate_groups, "form-letter campaign")}` +
+      `- ${count(s.in_duplicate_groups, "comment")} (${pct(s.in_duplicate_groups, s.fetched - s.attachment_only)} of those read) came from ${count(s.duplicate_groups, "form-letter campaign")}` +
         (largest && largest.size > 1 ? `; the largest was sent ${fmt(largest.size)} times (e.g. ${link(largest.representative_id)}).` : "."),
     );
   }
@@ -116,12 +116,12 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
     out.push(`Raised by **${count(a.commenters, "commenter")}** (${count(a.unique_comments, "distinct comment")}). Their overall position: ${positions}.`);
     out.push("");
 
+    // Up to three example quotes, each from a different comment.
     const seen = new Set<string>();
     for (const q of quotes) {
       if (seen.size >= 3) break;
-      const key = q.quote.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
+      if (seen.has(q.comment_id)) continue;
+      seen.add(q.comment_id);
       const who = q.group_size > 1 ? ` (form letter sent by ${fmt(q.group_size)} commenters)` : q.organization ? ` (${q.organization})` : "";
       out.push(`> "${q.quote.replace(/\s+/g, " ")}"  `);
       out.push(`> — ${link(q.comment_id)}${who}`);
