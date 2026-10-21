@@ -29,6 +29,16 @@ describe("groupDuplicates", () => {
     expect(groups[0]!.representative).toBe("c1"); // the most-copied version
   });
 
+  test("an already-read member stays the representative", () => {
+    const items = [
+      { id: "c1", text: template },
+      { id: "c2", text: template },
+      { id: "c3", text: "As a mother of a child with a peanut allergy, this matters to me. " + template },
+    ];
+    expect(groupDuplicates(items)[0]!.representative).toBe("c1");
+    expect(groupDuplicates(items, 0.5, 25, new Set(["c3"]))[0]!.representative).toBe("c3");
+  });
+
   test("different comments stay separate", () => {
     const groups = groupDuplicates([
       { id: "c1", text: template },

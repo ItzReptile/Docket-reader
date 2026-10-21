@@ -9,9 +9,14 @@ export async function groupComments(documentId: string, threshold = 0.5) {
     where document_id = ${documentId} and detail_fetched`;
 
   const readable = rows.filter((r) => !isAttachmentOnly(r.body, r.attachment_count));
+  const extracted: { comment_id: string }[] = await sql`
+    select distinct e.comment_id from extractions e join comments c using (comment_id)
+    where c.document_id = ${documentId}`;
   const groups = groupDuplicates(
     readable.map((r) => ({ id: r.comment_id, text: r.body! })),
     threshold,
+    undefined,
+    new Set(extracted.map((r) => r.comment_id)),
   );
 
   const skipped = rows.filter((r) => !readable.includes(r)).map((r) => r.comment_id);
@@ -27,6 +32,17 @@ export async function groupComments(documentId: string, threshold = 0.5) {
         returning id`;
       await tx`update comments set group_id = ${row.id} where comment_id in ${tx(g.ids)}`;
     }
+    // Results for a comment that is no longer its group's representative would
+    // count that group's people twice. Drop them.
+    const stale: { comment_id: string }[] = await tx`
+      select comment_id from comments
+      where document_id = ${documentId}
+        and comment_id not in (select representative_id from comment_groups where document_id = ${documentId})
+        and comment_id in (select comment_id from extractions)`;
+    const ids = stale.map((r) => r.comment_id);
+    const dropped = ids.length ? await tx`delete from claims where comment_id in ${tx(ids)} returning id` : [];
+    if (ids.length) await tx`delete from extractions where comment_id in ${tx(ids)}`;
+    if (dropped.length) console.log(`  dropped ${dropped.length} stale arguments from comments that are no longer representatives`);
   });
 
   const multi = groups.filter((g) => g.ids.length > 1);

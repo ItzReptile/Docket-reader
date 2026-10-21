@@ -57,8 +57,10 @@ class UnionFind {
  * @param threshold Jaccard similarity needed to call two texts the same letter.
  * @param minWords  Texts shorter than this only group on exact matches; short
  *                  comments share 5-word runs by chance too often.
+ * @param prefer    Comment IDs that should stay representatives if they are in a
+ *                  group (they were already read by the model on an earlier run).
  */
-export function groupDuplicates(items: Item[], threshold = 0.5, minWords = 25): Group[] {
+export function groupDuplicates(items: Item[], threshold = 0.5, minWords = 25, prefer = new Set<string>()): Group[] {
   // 1. Exact duplicates collapse to one "variant" each.
   const variants = new Map<string, string[]>(); // normalized text -> comment ids
   for (const item of items) {
@@ -108,7 +110,10 @@ export function groupDuplicates(items: Item[], threshold = 0.5, minWords = 25): 
       variants.get(texts[i]!)!.length > variants.get(texts[best]!)!.length ? i : best,
     );
     const kind = ids.length === 1 ? "single" : members.length === 1 ? "exact" : "near";
-    groups.push({ ids, representative: [...variants.get(texts[top]!)!].sort()[0]!, kind });
+    // Keep an already-read member as representative, so incremental runs don't
+    // switch representatives and leave a group read (and counted) twice.
+    const representative = ids.find((id) => prefer.has(id)) ?? [...variants.get(texts[top]!)!].sort()[0]!;
+    groups.push({ ids, representative, kind });
   }
   return groups.sort((a, b) => b.ids.length - a.ids.length);
 }
