@@ -31,6 +31,8 @@ export interface Extraction {
   seconds: number;
   /** Quotes that passed on the model's first try, before any retry. */
   firstTryPassed: number;
+  /** Arguments the model proposed before any retry (the first-try denominator). */
+  proposed: number;
 }
 
 export interface RuleInfo {
@@ -147,6 +149,7 @@ export async function extractComment(
   const stances: Stance[] = [];
   const claims: Claim[] = [];
   let firstTryPassed = 0;
+  let proposed = 0;
 
   for (const chunk of chunkText(body)) {
     const messages: Message[] = [
@@ -162,6 +165,7 @@ export async function extractComment(
       .map((a) => ({ argument: cleanArgument(a.argument), quote: a.quote.trim(), quoteOk: false }));
     for (const c of found) verify(body, c);
     firstTryPassed += found.filter((c) => c.quoteOk).length;
+    proposed += found.length;
 
     // Send failed quotes back with the reason, in the same conversation.
     messages.push({ role: "assistant", content: raw });
@@ -203,6 +207,7 @@ export async function extractComment(
     llmCalls,
     seconds: (performance.now() - started) / 1000,
     firstTryPassed,
+    proposed,
   };
 }
 
