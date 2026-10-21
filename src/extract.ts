@@ -93,7 +93,7 @@ For the comment you are given, return JSON with:
   mixed = supports some parts and objects to others, or supports it only with significant changes.
   unclear = the position can't be told, or the comment is off topic.
 - arguments: each distinct reason, request or concern the commenter gives. Usually 1 to 4. Use an empty list if the comment gives no reasons.
-  - argument: one short sentence in your own words, phrased so it would read the same for any commenter making the same point, e.g. "The compliance deadline is too short for small businesses". Do not mention the commenter or name anyone.
+  - argument: the point itself as one short sentence in your own words, phrased so it would read the same for any commenter making the same point, e.g. "The compliance deadline is too short for small businesses". State the claim directly: never start with "The commenter", and never name anyone.
   - quote: the sentence (or two adjacent sentences) from the comment that makes this point, copied exactly, character for character. Do not fix spelling or grammar, do not shorten it with "...", and do not paraphrase.`;
 }
 
@@ -159,14 +159,15 @@ export async function extractComment(
 
     const found: Claim[] = data.arguments
       .filter((a) => a.argument.trim())
-      .map((a) => ({ argument: a.argument.trim(), quote: a.quote.trim(), quoteOk: false }));
+      .map((a) => ({ argument: cleanArgument(a.argument), quote: a.quote.trim(), quoteOk: false }));
     for (const c of found) verify(body, c);
     firstTryPassed += found.filter((c) => c.quoteOk).length;
 
     // Send failed quotes back with the reason, in the same conversation.
     messages.push({ role: "assistant", content: raw });
     for (let round = 0; round < maxFixRounds; round++) {
-      const failed = found.map((c, i) => ({ c, n: i + 1 })).filter(({ c }) => !c.quoteOk);
+      // An empty quote means the model already withdrew that argument.
+      const failed = found.map((c, i) => ({ c, n: i + 1 })).filter(({ c }) => !c.quoteOk && c.quote !== "");
       if (failed.length === 0) break;
       messages.push({
         role: "user",
@@ -203,6 +204,18 @@ export async function extractComment(
     seconds: (performance.now() - started) / 1000,
     firstTryPassed,
   };
+}
+
+/**
+ * Small models often write "The commenter argues that X" despite the prompt.
+ * That shared prefix makes unrelated arguments look alike to the embedding
+ * model, so strip it and keep just X.
+ */
+export function cleanArgument(text: string): string {
+  const s = text
+    .trim()
+    .replace(/^(the |this |one )?(commenter|commentor|comment|writer|author|submitter)s? (strongly )?(argues|believes|states|says|claims|thinks|feels|notes|suggests|asserts|contends|expresses|urges|requests|asks|points out|emphasizes|highlights|is concerned)( that)?[:,]?\s+/i, "");
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 function verify(body: string, claim: Claim) {
