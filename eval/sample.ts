@@ -36,7 +36,7 @@ function rng(seed: number) {
 const pool: { comment_id: string }[] = await sql`
   select g.representative_id as comment_id
   from comment_groups g join comments c on c.comment_id = g.representative_id
-  where g.document_id = ${documentId} and array_length(regexp_split_to_array(trim(c.body), '\s+'), 1) >= 10
+  where g.document_id = ${documentId} and array_length(regexp_split_to_array(trim(c.body), '[[:space:]]+'), 1) >= 10
   order by g.representative_id`;
 await sql.close();
 
