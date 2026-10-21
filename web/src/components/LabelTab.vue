@@ -72,8 +72,7 @@ async function save() {
         <span class="shrink-0 text-xs text-muted-foreground tabular-nums">{{ done }}/{{ labels.length }} labeled</span>
       </div>
       <CardDescription>
-        Label what <em>you</em> read, without looking at the model's answer. List each distinct argument the commenter makes, one per
-        line, in your own words.
+        Label what <em>you</em> read, without looking at the model's answer. List each distinct point, one per line: a request (what they want the agency to do) and each reason behind it go on separate lines. Keep each one short, in your own words.
       </CardDescription>
     </CardHeader>
     <CardContent class="grid gap-6 lg:grid-cols-[minmax(0,6fr)_minmax(0,5fr)]">
