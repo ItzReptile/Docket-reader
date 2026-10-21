@@ -114,6 +114,8 @@ export const api = {
   summary: (doc: string, model: string) => call<Summary>(`/documents/${doc}/summary${m(model)}`),
   arguments: (doc: string, model: string) => call<Argument[]>(`/documents/${doc}/arguments${m(model)}`),
   flagged: (doc: string, model: string) => call<Flagged[]>(`/documents/${doc}/flagged${m(model)}`),
+  groups: (doc: string, model: string, limit = 8) => call<FormLetterGroup[]>(`/documents/${doc}/groups${m(model)}&limit=${limit}`),
+  attachmentOnly: (doc: string) => call<AttachmentOnly[]>(`/documents/${doc}/attachment-only`),
   memo: (doc: string, model: string, includePending: boolean) =>
     call<Memo>(`/documents/${doc}/memo${m(model)}&includePending=${includePending}`),
   quotes: (id: number) => call<Quote[]>(`/arguments/${id}/quotes`),
@@ -128,6 +130,48 @@ export const api = {
     call(`/eval/labels/${commentId}`, { method: "PUT", body: JSON.stringify(label) }),
 };
 
+export interface FormLetterGroup {
+  id: number;
+  size: number;
+  kind: "exact" | "near";
+  representative_id: string;
+  organization: string | null;
+  excerpt: string;
+  stance: Stance | null;
+}
+
+export interface AttachmentOnly {
+  comment_id: string;
+  organization: string | null;
+  attachment_count: number;
+}
+
 export const regsLink = (id: string) => `https://www.regulations.gov/comment/${id}`;
+
+/** Plain-language name for a stance. */
+export const STANCE_LABEL: Record<Stance, string> = {
+  support: "Supports",
+  oppose: "Opposes",
+  mixed: "Mixed",
+  unclear: "Unclear",
+};
+
+/** "Mostly opposes" / "Split", from commenter counts per stance. */
+export function stanceSummary(c: Record<Stance, number>): { text: string; stance: Stance | null } {
+  const total = c.support + c.oppose + c.mixed + c.unclear;
+  if (!total) return { text: "No position", stance: null };
+  const top = (Object.keys(STANCE_LABEL) as Stance[]).reduce((a, b) => (c[b] > c[a] ? b : a));
+  const share = c[top] / total;
+  if (share === 1) return { text: `All ${STANCE_LABEL[top].toLowerCase()}`, stance: top };
+  if (share >= 0.6) return { text: `Mostly ${STANCE_LABEL[top].toLowerCase()}`, stance: top };
+  return { text: "Split", stance: null };
+}
+
+export const STANCE_TEXT_COLOR: Record<Stance, string> = {
+  support: "text-emerald-700",
+  oppose: "text-rose-700",
+  mixed: "text-amber-700",
+  unclear: "text-muted-foreground",
+};
 export const fmt = (n: number) => n.toLocaleString("en-US");
 export const count = (n: number, word: string) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
