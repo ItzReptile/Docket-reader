@@ -45,6 +45,9 @@ export interface RuleInfo {
 export const EXTRACTION_SCHEMA = {
   type: "object",
   properties: {
+    // Written before the stance (fields are generated in order), so the model
+    // states what the commenter wants before judging it against the rule.
+    asks: { type: "string" },
     stance: { type: "string", enum: ["support", "oppose", "mixed", "unclear"] },
     arguments: {
       type: "array",
@@ -59,7 +62,7 @@ export const EXTRACTION_SCHEMA = {
       },
     },
   },
-  required: ["stance", "arguments"],
+  required: ["asks", "stance", "arguments"],
   additionalProperties: false,
 };
 
@@ -89,12 +92,13 @@ function systemPrompt(rule: RuleInfo) {
 Proposed rule: "${rule.title}" (${rule.documentId}, ${rule.agencyId}).
 ${rule.summary ? `What the rule proposes: ${rule.summary}\n` : ""}
 For the comment you are given, return JSON with:
-- stance: the commenter's position on the rule as proposed. Judge it against what the rule actually does, not the topic in general: someone who wants stricter or different requirements than the rule proposes does not support it as proposed.
+- asks: one sentence on what the commenter wants the agency to do, and whether the rule as proposed already does it. Write "nothing specific" if they ask for nothing.
+- stance: the commenter's position on the rule as proposed. Judge it against what the rule actually does, not the topic in general. Sharing the rule's general goal (safety, better care, lower cost) is not support if what they ask for is something the rule does not do.
   support = wants it finalized, or says it is good as proposed.
-  oppose = wants it withdrawn, or rejects its main approach.
-  mixed = supports some parts and objects to others, or supports it only with significant changes.
+  oppose = wants it withdrawn, rejects its main approach, or asks for a requirement the rule as proposed would not impose.
+  mixed = welcomes the rule, its approach or some of its parts, and also objects to or asks to change something. If the commenter says anything positive about the rule itself, choose mixed rather than oppose.
   unclear = the position can't be told, or the comment is off topic.
-- arguments: each distinct point the commenter makes. A point is either a request (what they want the agency to do) or a reason, concern or piece of evidence. List a request and each reason behind it as separate points. Usually 1 to 5. Use an empty list if the comment makes no point.
+- arguments: each distinct point the commenter makes. A point is either a request (what they want the agency to do) or a reason, concern or piece of evidence. List a request and each reason behind it as separate points. Short comments count too: "Please require X, it could save a life" makes two points. Usually 1 to 5. Use an empty list only if the comment makes no point at all.
   - argument: one point in at most 15 words, in your own words, phrased so it would read the same for any commenter making it. Good: "Extend the compliance deadline for small businesses". Good: "Small businesses cannot afford the new reporting software". Bad: "The rule fails to extend the deadline, which hurts small businesses because software is expensive" (that is two points). State it directly: never start with "The commenter", and never name anyone.
   - quote: the sentence (or two adjacent sentences) from the comment that makes this point, copied exactly, character for character. Do not fix spelling or grammar, do not shorten it with "...", and do not paraphrase.`;
 }
@@ -125,7 +129,7 @@ export function chunkText(text: string, size = CHUNK_CHARS): string[] {
   return chunks;
 }
 
-type Raw = { stance: Stance; arguments: { argument: string; quote: string }[] };
+type Raw = { asks: string; stance: Stance; arguments: { argument: string; quote: string }[] };
 
 async function withRetry<T>(fn: () => Promise<T>, tries = 3): Promise<T> {
   for (let i = 1; ; i++) {
