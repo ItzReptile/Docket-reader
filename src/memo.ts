@@ -13,6 +13,8 @@ const link = (id: string) => `[${id}](https://www.regulations.gov/comment/${id})
 const pct = (n: number, d: number) => (d ? `${Math.round((100 * n) / d)}%` : "0%");
 const fmt = (n: number) => n.toLocaleString("en-US");
 const count = (n: number, word: string) => `${fmt(n)} ${word}${n === 1 ? "" : "s"}`;
+// YYYY-MM-DD. Regulations.gov deadlines are 11:59 PM Eastern, which is already the next day in UTC.
+const day = (d: Date, timeZone?: string) => d.toLocaleDateString("en-CA", { timeZone });
 
 export interface MemoCheck {
   citedIds: number;
@@ -36,11 +38,11 @@ export async function buildMemo(documentId: string, model: string, opts: { inclu
   out.push(
     `**Document:** [${d.document_id}](https://www.regulations.gov/document/${d.document_id}) · ` +
       `Docket ${d.docket_id} · ${d.agency_id}` +
-      (d.comment_end_date ? ` · Comment period closed ${new Date(d.comment_end_date).toISOString().slice(0, 10)}` : ""),
+      (d.comment_end_date ? ` · Comment period closed ${day(new Date(d.comment_end_date), "America/New_York")}` : ""),
   );
   out.push("");
   out.push(
-    `> **Draft for staff review.** Generated ${new Date().toISOString().slice(0, 10)} by docket-reader. ` +
+    `> **Draft for staff review.** Generated ${day(new Date())} by docket-reader. ` +
       (opts.includePending
         ? "This draft includes arguments a reviewer has NOT yet approved; they are marked (unreviewed). "
         : "Every argument below was approved by a reviewer. ") +
