@@ -1,0 +1,19 @@
+[
+  {
+    "model": "qwen3.5:4b",
+    "provider": "ollama",
+    "date": "2026-10-22",
+    "comments": 30,
+    "secondsPerComment": 2.28,
+    "secondsMedian": 1.95,
+    "coldStartSeconds": 7.8,
+    "quoteFirstTry": 0.988,
+    "quoteFinal": 1,
+    "stanceAccuracy": 0.4,
+    "argumentRecall": 0.733,
+    "argumentPrecision": 0.688,
+    "labelArguments": 75,
+    "modelArguments": 80,
+    "matchThreshold": 0.8
+  }
+]
