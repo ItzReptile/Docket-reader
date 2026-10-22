@@ -1,5 +1,5 @@
 // Score a model against the hand labels.
-//   bun run eval FAA-2026-9178-0001 [--model qwen3.5:4b] [--match 0.8]
+//   bun run eval FAA-2026-9178-0001 [--model qwen3.5:4b] [--match 0.8] [--tag name]
 //
 // For every labeled comment, the extractor runs fresh (nothing is read from or
 // written to the pipeline tables) and we measure:
@@ -25,10 +25,10 @@ import { readLabels } from "./labels.ts";
 const { positionals, values } = parseArgs({
   args: Bun.argv.slice(2),
   allowPositionals: true,
-  options: { model: { type: "string" }, match: { type: "string", default: "0.8" } },
+  options: { model: { type: "string" }, match: { type: "string", default: "0.8" }, tag: { type: "string", default: "" } },
 });
 const documentId = positionals[0];
-if (!documentId) throw new Error("usage: bun run eval <document id> [--model name]");
+if (!documentId) throw new Error("usage: bun run eval <document id> [--model name] [--tag name]");
 const model = values.model ?? config.llmModel;
 const matchAt = Number(values.match);
 
@@ -106,6 +106,7 @@ const kept = sum(rows.map((r) => r.quotes.kept));
 
 const summary = {
   model,
+  tag: values.tag,
   provider: config.llmProvider,
   date: new Date().toISOString().slice(0, 10),
   comments: rows.length,
@@ -129,7 +130,7 @@ await Bun.write(new URL(`./runs/${model.replace(/[:/]/g, "_")}-${stamp}.json`, i
 // results.json keeps only the numbers (no comment text), one entry per model.
 const resultsUrl = new URL("./results.json", import.meta.url);
 const results: (typeof summary)[] = (await Bun.file(resultsUrl).exists()) ? await Bun.file(resultsUrl).json() : [];
-await Bun.write(resultsUrl, JSON.stringify([...results.filter((r) => r.model !== model), summary], null, 2) + "\n");
+await Bun.write(resultsUrl, JSON.stringify([...results.filter((r) => r.model !== model || (r.tag ?? "") !== values.tag), summary], null, 2) + "\n");
 
 const p = (x: number) => `${(100 * x).toFixed(0)}%`;
 console.log("\n| Model | Quotes verified (1st try / after retry) | Arguments found (recall) | Precision | Stance accuracy | Sec/comment |");
